@@ -10,11 +10,26 @@ Replaces Grafana with a purpose-built ~11MB Alpine container.
 
 - **19 metric cards** across Synapse and PostgreSQL
 - **10 time-series charts** with 1H / 6H / 24H range selector
+- **Customizable layout** — drag-and-drop to reorder widgets, add/remove cards and charts
+- **Collapsible chart sections** — click section headers to collapse/expand
 - **Light / Dark mode** toggle (dark by default, persisted in browser)
 - **Hover tooltips** with exact timestamps and formatted values
-- **Auto-refresh** every 15 seconds
-- **Responsive layout** for mobile and desktop
+- **Manual refresh button** + auto-refresh every 15 seconds
+- **Persistent layout** — widget order, visibility, collapsed state, and theme saved to localStorage
+- **Responsive design** for mobile and desktop
 - **No external Go dependencies** — only the standard library
+
+## Customization
+
+Click the pencil icon in the header to enter edit mode:
+
+- **Drag widgets** using the handle icon to reorder them
+- **Remove widgets** with the X button
+- **Add widgets** back using the + button (opens a side panel)
+- **Reset layout** with the gear icon to restore defaults
+- **Collapse/expand** chart sections by clicking the section header arrows
+
+All layout changes are saved automatically and persist across page reloads.
 
 ## Metrics
 
