@@ -124,6 +124,7 @@ type dashboardData struct {
 	Rooms         string `json:"rooms"`
 	DBTxnRate     string `json:"db_txn_rate"`
 	AvgRespTime   string `json:"avg_resp_time"`
+	SyncRespTime  string `json:"sync_resp_time"`
 
 	// Postgres
 	PGConnections  string `json:"pg_connections"`
@@ -151,7 +152,8 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 	eventsSent, _ := queryProm("increase(synapse_http_server_response_count_total{job=\"synapse\"}[1h])")
 	rooms, _ := queryProm("synapse_notifier_rooms")
 	dbTxnRate, _ := queryProm("sum(rate(synapse_storage_transaction_time_count_total[5m]))")
-	avgResp, _ := queryProm("sum(rate(synapse_http_server_response_time_seconds_sum{job=\"synapse\"}[5m])) / sum(rate(synapse_http_server_response_time_seconds_count{job=\"synapse\"}[5m]))")
+	avgResp, _ := queryProm(`sum(rate(synapse_http_server_response_time_seconds_sum{job="synapse",servlet!~"SyncRestServlet|SlidingSyncRestServlet"}[5m])) / sum(rate(synapse_http_server_response_time_seconds_count{job="synapse",servlet!~"SyncRestServlet|SlidingSyncRestServlet"}[5m]))`)
+	syncResp, _ := queryProm(`sum(rate(synapse_http_server_response_time_seconds_sum{job="synapse",servlet="SlidingSyncRestServlet"}[5m])) / sum(rate(synapse_http_server_response_time_seconds_count{job="synapse",servlet="SlidingSyncRestServlet"}[5m]))`)
 
 	// Postgres metrics
 	pgConn, _ := queryProm("sum(pg_stat_activity_count{datname=\"synapse\"})")
@@ -196,6 +198,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		Rooms:         formatFloat(getValue(rooms), "%.0f"),
 		DBTxnRate:     formatFloat(getValue(dbTxnRate), "%.1f/s"),
 		AvgRespTime:   formatFloat(getValue(avgResp), "%.3fs"),
+		SyncRespTime:  formatFloat(getValue(syncResp), "%.3fs"),
 
 		PGConnections:  formatFloat(getValue(pgConn), "%.0f"),
 		PGDBSize:       formatFloat(getValue(pgSize), "%.0f MB"),
@@ -226,7 +229,8 @@ func handleChartAPI(w http.ResponseWriter, r *http.Request) {
 		"cpu":            "rate(process_cpu_seconds_total{job=\"synapse\"}[5m]) * 100",
 		"memory":         "process_resident_memory_bytes{job=\"synapse\"} / 1024 / 1024",
 		"requests":       "sum(rate(synapse_http_server_requests_received_total{job=\"synapse\"}[5m]))",
-		"response_time":  "sum(rate(synapse_http_server_response_time_seconds_sum{job=\"synapse\"}[5m])) / sum(rate(synapse_http_server_response_time_seconds_count{job=\"synapse\"}[5m]))",
+		"response_time":       `sum(rate(synapse_http_server_response_time_seconds_sum{job="synapse",servlet!~"SyncRestServlet|SlidingSyncRestServlet"}[5m])) / sum(rate(synapse_http_server_response_time_seconds_count{job="synapse",servlet!~"SyncRestServlet|SlidingSyncRestServlet"}[5m]))`,
+		"sync_response_time": `sum(rate(synapse_http_server_response_time_seconds_sum{job="synapse",servlet="SlidingSyncRestServlet"}[5m])) / sum(rate(synapse_http_server_response_time_seconds_count{job="synapse",servlet="SlidingSyncRestServlet"}[5m]))`,
 		"federation_in":  "rate(synapse_federation_server_received_pdus_total[5m])",
 		"federation_out": "rate(synapse_federation_client_sent_transactions_total[5m])",
 		"open_fds":       "process_open_fds{job=\"synapse\"}",
@@ -536,6 +540,7 @@ const allWidgets = [
   { id: 'memory', label: 'Memory', section: 'synapse-cards', type: 'card', key: 'memory' },
   { id: 'request_rate', label: 'Request Rate', section: 'synapse-cards', type: 'card', key: 'request_rate' },
   { id: 'avg_resp_time', label: 'Avg Response', section: 'synapse-cards', type: 'card', key: 'avg_resp_time' },
+  { id: 'sync_resp_time', label: 'Sync Response', section: 'synapse-cards', type: 'card', key: 'sync_resp_time' },
   { id: 'dau', label: 'Daily Active Users', section: 'synapse-cards', type: 'card', key: 'dau' },
   { id: 'rooms', label: 'Rooms', section: 'synapse-cards', type: 'card', key: 'rooms' },
   { id: 'events_sent', label: 'Events (1h)', section: 'synapse-cards', type: 'card', key: 'events_sent' },
@@ -558,6 +563,7 @@ const allWidgets = [
   { id: 'chart-memory', label: 'Memory (MB)', section: 'synapse-charts', type: 'chart', metric: 'memory', color: '#22c55e', unit: ' MB' },
   { id: 'chart-requests', label: 'Request Rate (req/s)', section: 'synapse-charts', type: 'chart', metric: 'requests', color: '#f59e0b', unit: '/s' },
   { id: 'chart-response', label: 'Avg Response Time (s)', section: 'synapse-charts', type: 'chart', metric: 'response_time', color: '#ef4444', unit: 's' },
+  { id: 'chart-sync-response', label: 'Sync Response Time (s)', section: 'synapse-charts', type: 'chart', metric: 'sync_response_time', color: '#f43f5e', unit: 's' },
   { id: 'chart-db-txn', label: 'DB Transaction Rate (/s)', section: 'synapse-charts', type: 'chart', metric: 'db_txn', color: '#8b5cf6', unit: '/s' },
   { id: 'chart-cache', label: 'Cache Hit Ratio (%)', section: 'synapse-charts', type: 'chart', metric: 'cache_hit', color: '#06b6d4', unit: '%' },
 
@@ -870,6 +876,7 @@ async function fetchStats() {
     setVal('memory', d.memory);
     setVal('request_rate', d.request_rate);
     setVal('avg_resp_time', d.avg_resp_time);
+    setVal('sync_resp_time', d.sync_resp_time);
     setVal('dau', d.dau);
     setVal('rooms', d.rooms);
     setVal('events_sent', d.events_sent);
