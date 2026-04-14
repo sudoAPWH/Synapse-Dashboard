@@ -106,6 +106,22 @@ func formatFloat(raw string, format string) string {
 	return fmt.Sprintf(format, v)
 }
 
+func formatResponseTime(raw string) string {
+	if raw == "N/A" {
+		return raw
+	}
+	var v float64
+	fmt.Sscanf(raw, "%f", &v)
+	if v >= 1 {
+		return fmt.Sprintf("%.2fs", v)
+	}
+	ms := v * 1000
+	if ms >= 1 {
+		return fmt.Sprintf("%.0fms", ms)
+	}
+	return fmt.Sprintf("%.1fms", ms)
+}
+
 type dashboardData struct {
 	// Synapse
 	Version       string `json:"version"`
@@ -197,8 +213,8 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		EventsSent:    formatFloat(getValue(eventsSent), "%.0f"),
 		Rooms:         formatFloat(getValue(rooms), "%.0f"),
 		DBTxnRate:     formatFloat(getValue(dbTxnRate), "%.1f/s"),
-		AvgRespTime:   formatFloat(getValue(avgResp), "%.3fs"),
-		SyncRespTime:  formatFloat(getValue(syncResp), "%.3fs"),
+		AvgRespTime:   formatResponseTime(getValue(avgResp)),
+		SyncRespTime:  formatResponseTime(getValue(syncResp)),
 
 		PGConnections:  formatFloat(getValue(pgConn), "%.0f"),
 		PGDBSize:       formatFloat(getValue(pgSize), "%.0f MB"),
@@ -754,6 +770,15 @@ function fmtTime(ms) {
   return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
 }
 
+function fmtRespTime(v) {
+  if (v >= 1) return v.toFixed(2) + 's';
+  var ms = v * 1000;
+  if (ms >= 1) return ms.toFixed(0) + 'ms';
+  return ms.toFixed(1) + 'ms';
+}
+
+const respTimeMetrics = new Set(['response_time', 'sync_response_time']);
+
 function tooltipConfig() {
   return {
     enabled: true, mode: 'index', intersect: false,
@@ -769,6 +794,7 @@ function tooltipConfig() {
       },
       label: function(ctx) {
         const w = allWidgets.find(x => 'canvas-' + x.id === ctx.chart.canvas.id);
+        if (w && respTimeMetrics.has(w.metric)) return ' ' + fmtRespTime(ctx.parsed.y);
         const unit = w ? w.unit : '';
         return ' ' + ctx.parsed.y.toFixed(2) + unit;
       }
@@ -796,7 +822,7 @@ function createChartInstance(w) {
         },
         y: {
           grid: { color: getGridColor() },
-          ticks: { color: getTickColor(), font: { size: 11 } },
+          ticks: { color: getTickColor(), font: { size: 11 }, callback: respTimeMetrics.has(w.metric) ? function(v) { return fmtRespTime(v); } : undefined },
           beginAtZero: true
         }
       },
