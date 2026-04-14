@@ -401,7 +401,7 @@ var indexHTML = `<!DOCTYPE html>
   }
   .chart-section-content {
     overflow: hidden; transition: max-height 0.4s ease, opacity 0.3s ease;
-    max-height: 1000px; opacity: 1;
+    max-height: 2000px; opacity: 1;
   }
   .chart-section-content.collapsed {
     max-height: 0; opacity: 0;
