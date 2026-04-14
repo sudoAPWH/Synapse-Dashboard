@@ -8,8 +8,8 @@ Replaces Grafana with a purpose-built ~11MB Alpine container.
 
 ## Features
 
-- **19 metric cards** across Synapse and PostgreSQL
-- **10 time-series charts** with 1H / 6H / 24H range selector
+- **21 metric cards** across Synapse and PostgreSQL
+- **11 time-series charts** with 1H / 6H / 24H range selector
 - **Customizable layout** — drag-and-drop to reorder widgets, add/remove cards and charts
 - **Collapsible chart sections** — click section headers to collapse/expand
 - **Light / Dark mode** toggle (dark by default, persisted in browser)
@@ -33,7 +33,7 @@ All layout changes are saved automatically and persist across page reloads.
 
 ## Metrics
 
-### Synapse (12 cards, 6 charts)
+### Synapse (14 cards, 7 charts)
 
 | Card | Chart |
 |------|-------|
@@ -41,7 +41,8 @@ All layout changes are saved automatically and persist across page reloads.
 | CPU Usage | Memory (MB) |
 | Memory | Request Rate (req/s) |
 | Request Rate | Avg Response Time (s) |
-| Avg Response Time | DB Transaction Rate (/s) |
+| Avg Response Time | Sync Response Time (s) |
+| Sync Response | DB Transaction Rate (/s) |
 | Daily Active Users | Cache Hit Ratio (%) |
 | Rooms | |
 | Events (1h) | |
@@ -49,6 +50,8 @@ All layout changes are saved automatically and persist across page reloads.
 | DB Transaction Rate | |
 | File Descriptors | |
 | Federation (1h in/out) | |
+
+> **Note:** Avg Response Time excludes long-polling sync endpoints (SyncRestServlet, SlidingSyncRestServlet) to reflect actual request performance. Sync Response tracks SlidingSyncRestServlet separately and shows N/A when there is no sliding sync traffic.
 
 ### PostgreSQL (7 cards, 4 charts)
 

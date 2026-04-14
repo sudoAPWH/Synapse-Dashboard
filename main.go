@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -107,11 +108,14 @@ func formatFloat(raw string, format string) string {
 }
 
 func formatResponseTime(raw string) string {
-	if raw == "N/A" {
-		return raw
+	if raw == "N/A" || raw == "NaN" {
+		return "N/A"
 	}
 	var v float64
 	fmt.Sscanf(raw, "%f", &v)
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return "N/A"
+	}
 	if v >= 1 {
 		return fmt.Sprintf("%.2fs", v)
 	}
@@ -164,7 +168,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 	uptime, _ := queryProm("time() - process_start_time_seconds{job=\"synapse\"}")
 	fedIn, _ := queryProm("increase(synapse_federation_server_received_pdus_total[1h])")
 	fedOut, _ := queryProm("increase(synapse_federation_client_sent_transactions_total[1h])")
-	cacheHit, _ := queryProm("sum(rate(synapse_util_caches_cache_hits[5m])) / (sum(rate(synapse_util_caches_cache_hits[5m])) + sum(rate(synapse_util_caches_cache[5m])) + 0.001) * 100")
+	cacheHit, _ := queryProm("sum(rate(synapse_util_caches_cache_hits[5m])) / (sum(rate(synapse_util_caches_cache[5m])) + 0.001) * 100")
 	eventsSent, _ := queryProm("increase(synapse_http_server_response_count_total{job=\"synapse\"}[1h])")
 	rooms, _ := queryProm("synapse_notifier_rooms")
 	dbTxnRate, _ := queryProm("sum(rate(synapse_storage_transaction_time_count_total[5m]))")
@@ -251,7 +255,7 @@ func handleChartAPI(w http.ResponseWriter, r *http.Request) {
 		"federation_out": "rate(synapse_federation_client_sent_transactions_total[5m])",
 		"open_fds":       "process_open_fds{job=\"synapse\"}",
 		"db_txn":         "sum(rate(synapse_storage_transaction_time_count_total[5m]))",
-		"cache_hit":      "sum(rate(synapse_util_caches_cache_hits[5m])) / (sum(rate(synapse_util_caches_cache_hits[5m])) + sum(rate(synapse_util_caches_cache[5m])) + 0.001) * 100",
+		"cache_hit":      "sum(rate(synapse_util_caches_cache_hits[5m])) / (sum(rate(synapse_util_caches_cache[5m])) + 0.001) * 100",
 		"pg_connections": "sum(pg_stat_activity_count{datname=\"synapse\"})",
 		"pg_size":        "pg_database_size_bytes{datname=\"synapse\"} / 1024 / 1024",
 		"pg_cache_hit":   "pg_stat_database_blks_hit{datname=\"synapse\"} / (pg_stat_database_blks_hit{datname=\"synapse\"} + pg_stat_database_blks_read{datname=\"synapse\"} + 0.001) * 100",
@@ -277,6 +281,9 @@ func handleChartAPI(w http.ResponseWriter, r *http.Request) {
 			var val float64
 			if s, ok := v[1].(string); ok {
 				fmt.Sscanf(s, "%f", &val)
+			}
+			if math.IsNaN(val) || math.IsInf(val, 0) {
+				continue
 			}
 			points = append(points, chartPoint{T: int64(ts) * 1000, Y: val})
 		}
@@ -771,6 +778,7 @@ function fmtTime(ms) {
 }
 
 function fmtRespTime(v) {
+  if (isNaN(v) || !isFinite(v)) return 'N/A';
   if (v >= 1) return v.toFixed(2) + 's';
   var ms = v * 1000;
   if (ms >= 1) return ms.toFixed(0) + 'ms';
